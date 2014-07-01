@@ -1,0 +1,77 @@
+#!/usr/bin/perl --
+
+use strict;
+use Config::Simple;
+use File::Spec;
+use LWP::UserAgent;
+use XML::Simple;
+use Encode;
+use Unicode::Japanese;
+
+if (@ARGV != 1 and @ARGV != 2){
+	print "usage: " . __FILE__ . " station_id [flg_save<update, local>]\n";
+	exit 1;
+}
+
+my ($ua, $res, $cfg, $data);
+
+my $home_path = File::Spec->rel2abs();
+$home_path =~ s/__FILE__//g;
+
+$cfg = new Config::Simple($home_path . '/jcba.ini')->vars();
+my $timeout = $cfg->{'common.http_timeout'};
+my $user_agent = $cfg->{'common.mozilla_agent'} .' (' . $cfg->{'common.user_agent'} . ') jcba/0.1';
+
+my $station_id = $ARGV[0];
+my $flg_save = $ARGV[1];
+if($flg_save eq "" or ! -f "stations.lst") {
+	$flg_save = "update";
+}
+
+my $station_data = "";
+if($flg_save eq "update") {
+	$ua = LWP::UserAgent->new;
+#	$ua->timeout($timeout);
+#	$ua->agent($user_agent);
+	
+	$res = $ua->get("http://www.jcbasimul.com/program/stations.txt");
+	if (!$res->is_success) {
+		print "Can't get Station file.\n";
+		exit 1;
+	}
+	$station_data = $res->content;
+
+	$station_data =~ s/&//g;
+	$station_data =~ s/　/ /g;
+	$station_data = Unicode::Japanese->new($station_data)->z2h->get;
+	$station_data = Unicode::Japanese->new($station_data)->h2zKana->get;
+
+	open(FILE, "> stations.lst");
+	print FILE $station_data;
+	close(FILE);
+
+} else {
+	open(FILE, "stations.lst");
+	while(my $line = <FILE>){
+		$station_data .= $line;
+	}
+	close(FILE);
+}
+
+my $station_list = {};
+my ($id, $name, $ret_code, $ret_message);
+foreach (split(/\n/, $station_data)) {
+	($id, $name) = split(/=/, $_);
+	$station_list->{$id} = $name;
+}
+if ($station_list->{$station_id} eq "") {
+	$ret_message = "Station is not Found.";
+	$ret_code = 1;
+} else {
+	$ret_message = $station_list->{$station_id};
+	$ret_code = 0;
+}
+
+print "$ret_message\n";
+exit $ret_code;
+
