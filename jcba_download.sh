@@ -43,7 +43,7 @@ SERVER="rtmp://musicbird.fc.llnwd.net/musicbird/$channel"
 #
 # rtmpdump
 #
-MESSAGE="$FILE_NAME:$channel rec do"
+MESSAGE="$FILE_NAME:$channel $isLive do"
 echo $MESSAGE 1>&2
 #$HOMEPATH/twitter/post.sh "$FILE_NAME:$channel rec do"
 rtmpdump -v -r "$SERVER" $time_param --timeout 5 --live --flv $DUMP_FILE 2> $DISP_MODE
